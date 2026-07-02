@@ -6,7 +6,7 @@
 // Usage: node scripts/dashboard.mjs --person <slug>   (then open the person's dist/jobs-dashboard.html)
 
 import { execFileSync } from "node:child_process";
-import { writeFileSync, mkdirSync } from "node:fs";
+import { writeFileSync, mkdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { resolvePerson, childEnv, SCRIPTS } from "./lib/paths.mjs";
 
@@ -53,9 +53,11 @@ function card(j) {
   const staffBadge = j.isStaffingAgency ? `<span class="badge staff">staffing agency</span>` : "";
   const reachBadge = j.reach ? `<span class="badge reach" title="${esc(j.reachNote || "")}">&#9888; reach</span>` : "";
   const contractBadge = j.contract ? `<span class="badge contract">contract</span>` : "";
+  const sc = (j.status || "").toLowerCase().replace(/[^a-z]/g, "");
+  const statusPill = j.status ? `<span class="status ${sc}">${esc(j.status)}</span>` : "";
   return `
-  <div class="card ${tier(j.composite)}">
-    <div class="rank">${medal(j.rank)}</div>
+  <div class="card ${tier(j.composite)}${j.closed ? " closed" : ""}">
+    <div class="rank">${j.closed ? "" : medal(j.displayRank)}</div>
     <div class="body">
       <div class="head">
         <div>
@@ -63,6 +65,7 @@ function card(j) {
           <div class="role">${esc(j.role)}</div>
         </div>
         <div class="scorebox">
+          ${statusPill}
           <div class="composite ${tier(j.composite)}">
             <div class="num">${j.composite == null ? "N/A" : j.composite}</div>
             <div class="cap">composite</div>
@@ -82,7 +85,31 @@ function card(j) {
 }
 
 const w = data.weights;
-const cards = data.jobs.map(card).join("\n");
+
+// Join application status from applications.json (keyed by jobId), then sink jobs
+// in a CLOSED (terminal) state to the bottom of the page.
+const statusById = {};
+try {
+  const apps = JSON.parse(readFileSync(join(ROOT, "applications.json"), "utf8"));
+  if (Array.isArray(apps)) for (const a of apps) statusById[String(a.id)] = String(a.status || "");
+} catch { /* tracker may not exist yet */ }
+
+const CLOSED = new Set(["rejected", "withdrawn", "declined", "skipped", "closed"]);
+const jobs = data.jobs.map((j) => {
+  const status = statusById[String(j.jobId)] || "";
+  return { ...j, status, closed: CLOSED.has(status.toLowerCase()) };
+});
+const active = jobs.filter((j) => !j.closed);
+const closedJobs = jobs.filter((j) => j.closed);
+active.forEach((j, i) => { j.displayRank = i + 1; }); // re-medal active pipeline 1..N
+
+const cards =
+  `<div class="section">Active pipeline (${active.length})</div>\n` +
+  (active.length ? active.map(card).join("\n") : `<div class="empty">No active applications.</div>`) +
+  (closedJobs.length
+    ? `\n<div class="section closed-h">Closed (${closedJobs.length}) &middot; rejected / withdrawn / skipped</div>\n` +
+      closedJobs.map(card).join("\n")
+    : "");
 
 const html = `<!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8"><title>Job Pipeline - Score Dashboard</title>
@@ -130,6 +157,19 @@ h1{ margin:0; color:var(--navy); font-size:22px; letter-spacing:.2px; }
 .badge.staff{ background:#fff3e0; color:#9a6412; border:1px solid #f0d9b5; }
 .badge.reach{ background:#fdecea; color:#b02a1a; border:1px solid #f3c2bb; }
 .badge.contract{ background:#e7f0fb; color:#2c5a8c; border:1px solid #c3d8f0; }
+.status{ font-size:10px; padding:1px 8px; border-radius:10px; text-transform:capitalize; letter-spacing:.2px;
+  background:#eef2f7; color:#5b6875; border:1px solid #dbe2ea; }
+.status.applied{ background:#e7f0fb; color:#2c5a8c; border-color:#c3d8f0; }
+.status.screen{ background:#f3e9fb; color:#6b3a8c; border-color:#e0cdf0; }
+.status.interview{ background:#fff3e0; color:#9a6412; border-color:#f0d9b5; }
+.status.offer{ background:#e6f4ec; color:#1f7a4d; border-color:#c2e2d0; }
+.status.rejected{ background:#fdecea; color:#b02a1a; border-color:#f3c2bb; }
+.card.closed{ opacity:.6; }
+.card.closed .composite{ filter:grayscale(.4); }
+.section{ margin:24px 0 4px; color:var(--navy); font-size:12px; font-weight:700; text-transform:uppercase;
+  letter-spacing:1px; border-bottom:1px solid var(--line); padding-bottom:6px; }
+.section.closed-h{ color:var(--muted); margin-top:30px; }
+.empty{ color:var(--muted); font-size:12.5px; padding:10px 2px; }
 .reachwarn{ margin-top:8px; background:#fdecea; color:#8a2317; border:1px solid #f3c2bb; border-radius:6px; padding:6px 10px; font-size:11.5px; }
 .reachwarn b{ color:#b02a1a; }
 .foot{ color:var(--muted); font-size:11px; margin-top:18px; border-top:1px solid var(--line); padding-top:12px; }
@@ -137,7 +177,7 @@ h1{ margin:0; color:var(--navy); font-size:22px; letter-spacing:.2px; }
 </style></head><body>
 <div class="wrap">
   <h1>Job Pipeline &mdash; Score Dashboard</h1>
-  <div class="sub">Ranked by composite &nbsp;&middot;&nbsp; weights: skill ${w.skill} &middot; comp ${w.comp} &middot; company ${w.company} (renormalized over available dimensions)</div>
+  <div class="sub">Ranked by composite &nbsp;&middot;&nbsp; weights: skill ${w.skill} &middot; comp ${w.comp} &middot; company ${w.company} (renormalized over available dimensions) &nbsp;&middot;&nbsp; closed applications sink to the bottom</div>
   ${cards}
   <div class="foot">
     <b>How to read it:</b> Skill = matched required skills (professional 1.0, familiar 0.5).
@@ -158,4 +198,4 @@ const outDir = join(ROOT, "dist");
 mkdirSync(outDir, { recursive: true });
 const outFile = join(outDir, "jobs-dashboard.html");
 writeFileSync(outFile, html);
-console.log(`Wrote ${data.jobs.length} jobs -> dist/jobs-dashboard.html`);
+console.log(`Wrote ${jobs.length} jobs (${active.length} active, ${closedJobs.length} closed) -> dist/jobs-dashboard.html`);
