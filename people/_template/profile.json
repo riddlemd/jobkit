@@ -1,0 +1,23 @@
+{
+  "_comment": "TEMPLATE. Copy people/_template to people/<slug> to onboard a person. Fill in every value. Ranking keys (comp, weights, skillsProfessional, skillsFamiliar) are read by rank.mjs - use lowercase tokens. Keep comp targets NON-ZERO (rank divides by them).",
+  "person": {
+    "slug": "CHANGE-ME",
+    "name": "Full Name",
+    "location": "City, ST",
+    "titleMappings": {},
+    "targetRoles": {
+      "want": [],
+      "skipWhen": [],
+      "differentiators": []
+    }
+  },
+  "comp": {
+    "annualTarget": 100000,
+    "annualFloor": 90000,
+    "hourlyTarget": 50,
+    "hourlyFloor": 45
+  },
+  "weights": { "skill": 0.5, "comp": 0.3, "company": 0.2 },
+  "skillsProfessional": [],
+  "skillsFamiliar": []
+}

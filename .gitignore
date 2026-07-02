@@ -1,0 +1,15 @@
+# Personal job-search data is PRIVATE. Ignore every person folder under people/
+# EXCEPT the onboarding skeleton (people/_template), which is shared tooling.
+people/*
+!people/_template/
+
+# Generated build artifacts (PDF/DOCX/HTML/dashboard/espanso) - always regenerated.
+**/dist/
+
+# OS / editor cruft
+.DS_Store
+Thumbs.db
+desktop.ini
+*.swp
+.vscode/
+.idea/
