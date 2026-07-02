@@ -105,3 +105,7 @@ flag for roles where the real barrier is level/interview bar rather than skills.
 | `scripts/lib/paths.mjs` | Shared `--person` / `JOBKIT_PERSON` resolver. |
 
 See `JOBKIT.md` for the full workflow and `CLAUDE.md` for the operating contract.
+
+## License
+
+[MIT](LICENSE).
