@@ -18,6 +18,7 @@ import { readFileSync, writeFileSync, existsSync, mkdirSync } from "node:fs";
 import { join, resolve, basename, extname } from "node:path";
 import { execFileSync } from "node:child_process";
 import { tmpdir } from "node:os";
+import { pathToFileURL } from "node:url";
 import { resolvePerson } from "./lib/paths.mjs";
 
 // Person root (requires --person <slug> or JOBKIT_PERSON). `argv` is the CLI args
@@ -225,13 +226,16 @@ function exportPdf(htmlPath, outPdf) {
     "C:/Program Files/Microsoft/Edge/Application/msedge.exe",
     "C:/Program Files/Google/Chrome/Application/chrome.exe",
     "C:/Program Files (x86)/Google/Chrome/Application/chrome.exe",
+    "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge",
+    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+    "/Applications/Chromium.app/Contents/MacOS/Chromium",
   ]);
   if (!edge) { console.warn("  [pdf] no Edge/Chrome found - skipped"); return false; }
   execFileSync(edge, [
     "--headless=new", "--disable-gpu", "--no-pdf-header-footer",
     `--user-data-dir=${join(tmpdir(), "resume-edge-pdf")}`,
     `--print-to-pdf=${outPdf}`,
-    `file:///${htmlPath.replace(/\\/g, "/")}`,
+    pathToFileURL(htmlPath).href,
   ], { stdio: "ignore" });
   return true;
 }
@@ -240,6 +244,9 @@ function exportDocx(htmlPath, outDir) {
   const soffice = firstExisting([
     "C:/Program Files/LibreOffice/program/soffice.exe",
     "C:/Program Files (x86)/LibreOffice/program/soffice.exe",
+    "/Applications/LibreOffice.app/Contents/MacOS/soffice",
+    "/opt/homebrew/bin/soffice",
+    "/usr/local/bin/soffice",
   ]);
   if (!soffice) { console.warn("  [docx] no LibreOffice found - skipped"); return false; }
   // LibreOffice names the output <htmlBasename>.docx inside outDir.
