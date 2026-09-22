@@ -59,10 +59,18 @@ const FIELDS = [
   ["salary", "Desired salary / rate"], ["start", "Earliest start date"],
   ["comp", "Current/most recent compensation"], ["gender", "Gender"], ["race", "Race/Ethnicity"],
   ["veteran", "Veteran status"], ["disability", "Disability status"], ["edu", "Highest level"],
+  ["portfolio", "GitHub / Portfolio"], ["preferred", "Preferred name"], ["pronouns", "Pronouns"],
+  ["address", "Mailing address"], ["notice", "Notice period"], ["travel", "Willing to travel?"],
+  ["license", "Valid driver's license / reliable transportation?"],
+  ["heard", "How did you hear about us?"],
+  ["ref1", "Reference 1"], ["ref1mail", "Reference 1 email"],
+  ["ref2", "Reference 2"], ["ref2mail", "Reference 2 email"],
+  ["ref3", "Reference 3"], ["ref3mail", "Reference 3 email"],
 ];
 const SNIPPETS = [
   ["pitch", "Tell me about yourself"], ["why", "Why are you interested"],
   ["strength", "Greatest strength"],
+  ["leaving", "Why are you leaving"], ["weakness", "Greatest weakness"],
 ];
 
 const matches = [], cheat = [], skipped = [];
