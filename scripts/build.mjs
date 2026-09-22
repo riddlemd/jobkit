@@ -14,7 +14,10 @@
 // No npm dependencies. The HTML template/CSS below is kept byte-for-byte in sync with
 // the hand-tuned design; edit it here if you want to restyle.
 
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from "node:fs";
+import {
+  readFileSync, writeFileSync, existsSync, mkdirSync, mkdtempSync, rmSync, statSync,
+  openSync, readSync, closeSync,
+} from "node:fs";
 import { join, resolve, basename, extname } from "node:path";
 import { execFileSync } from "node:child_process";
 import { tmpdir } from "node:os";
@@ -220,6 +223,18 @@ ${parts.join("\n")}
 // ---- exports (best-effort; warn but don't fail the build) ----
 const firstExisting = paths => paths.find(p => existsSync(p));
 
+// LibreOffice wedges forever on a profile lock left by a killed run, so both exporters get
+// a throwaway profile; the timeout turns a wedged child into an error, not a silent hang.
+const EXPORT_TIMEOUT_MS = 120_000;
+// Chrome renders the PDF in seconds but then hangs instead of exiting whenever a desktop
+// Chrome is already running, so it is capped separately and judged on its output.
+const PDF_TIMEOUT_MS = 30_000;
+function withTempProfile(prefix, fn) {
+  const dir = mkdtempSync(join(tmpdir(), prefix));
+  try { return fn(dir); }
+  finally { rmSync(dir, { recursive: true, force: true }); }
+}
+
 function exportPdf(htmlPath, outPdf) {
   const edge = firstExisting([
     "C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe",
@@ -231,13 +246,29 @@ function exportPdf(htmlPath, outPdf) {
     "/Applications/Chromium.app/Contents/MacOS/Chromium",
   ]);
   if (!edge) { console.warn("  [pdf] no Edge/Chrome found - skipped"); return false; }
-  execFileSync(edge, [
-    "--headless=new", "--disable-gpu", "--no-pdf-header-footer",
-    `--user-data-dir=${join(tmpdir(), "resume-edge-pdf")}`,
-    `--print-to-pdf=${outPdf}`,
-    pathToFileURL(htmlPath).href,
-  ], { stdio: "ignore" });
+  const startedAt = Date.now();
+  try {
+    withTempProfile("resume-edge-pdf-", dir => execFileSync(edge, [
+      "--headless=new", "--disable-gpu", "--no-pdf-header-footer",
+      `--user-data-dir=${dir}`,
+      `--print-to-pdf=${outPdf}`,
+      pathToFileURL(htmlPath).href,
+    ], { stdio: "ignore", timeout: PDF_TIMEOUT_MS }));
+  } catch (e) {
+    // A hung Chrome that already wrote this run's PDF still succeeded; anything else did not.
+    if (!wrotePdf(outPdf, startedAt)) throw e;
+  }
   return true;
+}
+
+function wrotePdf(outPdf, startedAt) {
+  if (!existsSync(outPdf)) return false;
+  const st = statSync(outPdf);
+  if (st.size === 0 || st.mtimeMs < startedAt) return false;
+  const head = Buffer.alloc(5);
+  const fd = openSync(outPdf, "r");
+  try { readSync(fd, head, 0, 5, 0); } finally { closeSync(fd); }
+  return head.toString("latin1") === "%PDF-";
 }
 
 function exportDocx(htmlPath, outDir) {
@@ -250,9 +281,10 @@ function exportDocx(htmlPath, outDir) {
   ]);
   if (!soffice) { console.warn("  [docx] no LibreOffice found - skipped"); return false; }
   // LibreOffice names the output <htmlBasename>.docx inside outDir.
-  execFileSync(soffice, [
+  withTempProfile("resume-soffice-", dir => execFileSync(soffice, [
+    `-env:UserInstallation=${pathToFileURL(dir).href}`,
     "--headless", "--convert-to", "docx:MS Word 2007 XML", "--outdir", outDir, htmlPath,
-  ], { stdio: "ignore" });
+  ], { stdio: "ignore", timeout: EXPORT_TIMEOUT_MS }));
   return true;
 }
 
