@@ -37,11 +37,14 @@ scripts/             shared, zero-dependency Node ESM tools
 By default the included `.gitignore` tracks only `people/_template` and ignores every real
 person's folder, so personal data stays out of version control.
 
+To keep personal data outside the checkout entirely (so deleting a worktree or re-cloning
+can't take it with it), set `JOBKIT_PEOPLE_DIR` to a folder that holds the `<slug>/` dirs.
+
 ## Requirements
 
 - **Node.js** (18+; zero npm dependencies).
-- **PDF export:** headless Microsoft Edge or Chrome (auto-detected).
-- **DOCX export:** headless LibreOffice (auto-detected).
+- **PDF export:** headless Microsoft Edge, Chrome or Chromium (auto-detected on Windows and macOS).
+- **DOCX export:** headless LibreOffice (auto-detected on Windows and macOS).
 - **Text expander (optional):** [Espanso](https://espanso.org).
 
 ## Every command needs a person
@@ -62,6 +65,9 @@ node scripts/jobkit.mjs --person <slug> add "Company" "Role" "LinkedIn" "<url>"
 node scripts/jobkit.mjs --person <slug> scaffold <id>
 node scripts/jobkit.mjs --person <slug> set <id> applied "submitted"
 node scripts/jobkit.mjs --person <slug> list
+# `add` refuses a posting already tracked (same URL, ignoring tracking params, or the same
+# company + role); --force adds it anyway. `set` keeps every status change and note in
+# `history` and records the first date each stage was reached (dates.applied, ...).
 
 # Rank jobs and render a dashboard
 node scripts/rank.mjs --person <slug>                  # ranked table
@@ -102,7 +108,9 @@ flag for roles where the real barrier is level/interview bar rather than skills.
 | `scripts/build-snippets.mjs` | `answers.md` -> Espanso text-expander config. |
 | `scripts/sync-snippets.mjs` | Regenerate snippets + load into Espanso. |
 | `scripts/refresh.mjs` | Rebuild all of a person's artifacts in one command. |
-| `scripts/lib/paths.mjs` | Shared `--person` / `JOBKIT_PERSON` resolver. |
+| `scripts/lib/paths.mjs` | Shared `--person` / `JOBKIT_PERSON` resolver (`JOBKIT_PEOPLE_DIR` overrides `people/`). |
+
+Tests: `node --test tests/` (no dependencies; each test uses a throwaway people dir).
 
 See `JOBKIT.md` for the full workflow and `CLAUDE.md` for the operating contract.
 

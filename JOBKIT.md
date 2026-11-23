@@ -70,8 +70,8 @@ node scripts/refresh.mjs              # rebuild all global artifacts
 node scripts/refresh.mjs --no-espanso # ...but skip the Espanso copy/restart
 ```
 
-PDF uses headless Edge/Chrome; DOCX uses headless LibreOffice (both auto-detected, no
-pandoc needed). Or just say *"rebuild the resume"* in Claude Code. After a build, the
+PDF uses headless Edge/Chrome/Chromium; DOCX uses headless LibreOffice (both auto-detected
+on Windows and macOS, no pandoc needed). Or just say *"rebuild the resume"* in Claude Code. After a build, the
 DOCX is checked to stay ATS-clean (no tables/columns/text boxes).
 
 ## The workflow (per job)
@@ -121,14 +121,21 @@ DOCX is checked to stay ATS-clean (no tables/columns/text boxes).
 
 ```
 node scripts/jobkit.mjs list [status]                     show pipeline (colored)
-node scripts/jobkit.mjs add "Company" "Role" [src] [url]  add a lead
+node scripts/jobkit.mjs add "Company" "Role" [src] [url] [--force]  add a lead
 node scripts/jobkit.mjs scaffold <id>                      create the job folder
 node scripts/jobkit.mjs set <id> <status> [note]          update status
 node scripts/jobkit.mjs open <id>                          print the job folder path
 ```
 
-**Statuses:** `lead → applied → screen → interview → offer` (plus `rejected`, `withdrawn`).
-Free-form, but those get color in `list`.
+**Statuses:** `lead → applied → screen → interview → offer` (plus `rejected`, `withdrawn`,
+`skipped`, `closed`). Free-form, but those get color in `list`; the dashboard sinks
+`rejected`/`withdrawn`/`declined`/`skipped`/`closed` to the bottom.
+
+`add` refuses a posting that's already tracked (same URL ignoring tracking params like
+`trk`/`utm_*`, or the same company + role) and names the existing id; `--force` adds it
+anyway. `set` appends every change to the record's `history` (`{date, status, note}`),
+keeps `notes` as the latest note, and records the first date each stage was reached
+(`dates.applied`, `dates.screen`, ...).
 
 ## Regenerating exports
 
@@ -186,7 +193,8 @@ node scripts/dashboard.mjs    # -> dist/jobs-dashboard.html (styled visual, open
 Transparent, reproducible scoring over **curated** inputs (no NLP guessing):
 - `people/<slug>/profile.json` — comp targets, dimension weights, and skill lists
   (**professional** = full credit, **familiar** = half credit).
-- `jobs/<id>/score.json` — per job: posted comp, required/preferred skills (lowercase
+- `jobs/<id>/score.json` — per job (the id comes from the folder's numeric prefix; a
+  `jobId` field that disagrees is overridden with a warning): posted comp, required/preferred skills (lowercase
   tokens matching the profile vocab), and researched company rating. **Single home for a
   job's scoring numbers — don't duplicate them into `notes.md`.**
 

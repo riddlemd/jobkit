@@ -14,7 +14,9 @@ import { dirname, join } from "node:path";
 const HERE = dirname(fileURLToPath(import.meta.url)); // scripts/lib
 export const SCRIPTS = join(HERE, "..");              // scripts
 export const REPO = join(SCRIPTS, "..");              // repo root
-export const PEOPLE = join(REPO, "people");
+// JOBKIT_PEOPLE_DIR keeps personal data outside the checkout, so removing a worktree
+// or re-cloning can't take git-ignored people/ folders with it.
+export const PEOPLE = process.env.JOBKIT_PEOPLE_DIR || join(REPO, "people");
 
 // Pull `--person <slug>` (or `--person=<slug>`) out of an argv array.
 // Returns { slug, rest } where rest is argv with the flag (and its value) removed,
@@ -61,7 +63,7 @@ export function resolvePerson(argv = process.argv.slice(2)) {
   if (!slug) fail("no person specified.");
   if (!/^[a-z0-9][a-z0-9-]*$/.test(slug)) fail(`invalid person slug '${slug}' (use lowercase letters, digits, hyphens).`);
   const root = join(PEOPLE, slug);
-  if (!existsSync(root)) fail(`person '${slug}' not found at people/${slug}.`);
+  if (!existsSync(root)) fail(`person '${slug}' not found at ${root}.`);
   return { slug, root, rest, repo: REPO };
 }
 

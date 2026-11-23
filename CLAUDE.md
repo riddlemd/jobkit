@@ -18,6 +18,7 @@ short operating contract.
 - **Espanso is a single global config; whoever you `sync-snippets --person <slug>` LAST is
   the live person** in the text-expander. Re-sync to switch.
 - Onboard a new person by copying `people/_template` to `people/<slug>` and filling it in.
+- `JOBKIT_PEOPLE_DIR`, when set, replaces `people/` as the folder holding `<slug>/` dirs.
 - To see who's currently onboarded, run any script with no `--person` (it lists them).
 
 ## Hard rules
@@ -87,8 +88,11 @@ Full flow: `node scripts/jobkit.mjs --person <slug> add "Company" "Role" <src> <
 `scaffold <id>` -> paste the posting into `people/<slug>/jobs/<id>-*/posting.txt` -> ATS gap
 analysis -> create `jobs/<id>-*/score.json` (comp, curated required/preferred skills as
 lowercase tokens matching the person's `profile.json`, company rating) ->
-`rank.mjs --person <slug> <id>` to score -> tailor the resume -> build it -> user submits.
-Track status with `jobkit.mjs --person <slug> set`.
+-> `rank.mjs --person <slug> <id>` to score -> tailor the resume -> build it -> user submits.
+Track status with `jobkit.mjs --person <slug> set`. `add` refuses a posting already tracked
+(it prints the existing id - use that instead of `--force` unless it's a genuinely separate
+opening). The job id is the folder prefix; `rank.mjs` overrides a disagreeing `jobId` in
+score.json. `set` appends to `history`, so never hand-edit notes to preserve old ones.
 
 **Submission filename (do this for every job):** the tailored resume the user submits must
 be professionally named `<Person Name> - Resume - <Role>.pdf` / `.docx` - NOT
@@ -105,6 +109,7 @@ and remove any leftover `tailored-resume.*` outputs. `<Role>` = the posting's ro
 - Don't commit/push unless explicitly asked.
 - After changing a person's `resume.md`, rebuild (`--person <slug>`) and confirm outputs are ASCII + ATS-clean.
 - Always pass `--person <slug>` - scripts have no default person and will error without it.
+- After changing `scripts/`, run `node --test tests/`.
 
 ## Delegation (specializes the global "use subagents" rule for this workflow)
 

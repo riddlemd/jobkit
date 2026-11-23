@@ -116,6 +116,16 @@ function loadScores() {
     try {
       const s = JSON.parse(readFileSync(f, "utf8"));
       s._folder = ent.name;
+      // The folder prefix is the tracker id (jobkit.mjs names it); a hand-typed jobId
+      // that disagrees would rank under, and join the status of, the wrong application.
+      const prefix = ent.name.match(/^(\d+)-/);
+      if (prefix) {
+        const folderId = Number(prefix[1]);
+        if (s.jobId != null && String(s.jobId) !== String(folderId)) {
+          console.error(`${YELLOW}Warning:${R} ${ent.name}/score.json says jobId ${s.jobId}; using folder id ${folderId}`);
+        }
+        s.jobId = folderId;
+      }
       out.push(s);
     } catch (e) {
       console.error(`${YELLOW}Warning:${R} skipping ${f}: ${e.message}`);

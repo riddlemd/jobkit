@@ -3,17 +3,20 @@
 // applications.json (an array of records) is the source of truth; this is just a
 // nicer terminal view + safe append/update so you don't hand-edit IDs.
 // Record shape: { id, company, role, source, url, status, folder,
-//                 dates: { added, updated }, notes }
+//                 dates: { added, updated, <status>: first date reached }, notes,
+//                 history: [{ date, status, note? }] }
 //
 // Usage:
 //   node scripts/jobkit.mjs list                         show all applications (table)
 //   node scripts/jobkit.mjs list <status>                filter by status
-//   node scripts/jobkit.mjs add "Company" "Role" [source] [url]
-//                                                add a row (status=lead, date=today)
-//   node scripts/jobkit.mjs set <id> <status> [note]     update status (+ optional note)
+//   node scripts/jobkit.mjs add "Company" "Role" [source] [url] [--force]
+//                                                add a row (status=lead, date=today);
+//                                                refuses a matching URL or company+role
+//   node scripts/jobkit.mjs set <id> <status> [note]     update status; appends to history
 //   node scripts/jobkit.mjs open <id>                     print the row's job-folder path
 //
-// Statuses (free-form, but these get colored): lead applied screen interview offer rejected withdrawn
+// Statuses (free-form, but these get colored): lead applied screen interview offer
+// rejected withdrawn skipped closed
 
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
@@ -40,9 +43,32 @@ const save = recs => writeFileSync(DATA, JSON.stringify(recs, null, 2) + "\n");
 
 const COLOR = {
   lead: "\x1b[90m", applied: "\x1b[36m", screen: "\x1b[35m", interview: "\x1b[33m",
-  offer: "\x1b[32m", rejected: "\x1b[31m", withdrawn: "\x1b[90m",
+  offer: "\x1b[32m", rejected: "\x1b[31m", withdrawn: "\x1b[90m", skipped: "\x1b[90m", closed: "\x1b[90m",
 };
 const R = "\x1b[0m";
+
+// Tracking params differ per click, so the same posting arrives under many URLs. Only those
+// are dropped: boards like Indeed and Greenhouse put the job id itself in the query string.
+const TRACKING = /^(utm_|trk|ref|refid|tracking|trackingid|gclid|fbclid|lipi|src$|source$)/i;
+const normUrl = u => {
+  try {
+    const x = new URL(u);
+    const q = [...x.searchParams].filter(([k]) => !TRACKING.test(k)).sort(([a], [b]) => a.localeCompare(b));
+    const qs = q.map(([k, v]) => `${k}=${v}`).join("&");
+    return (x.host.replace(/^www\./, "") + x.pathname).replace(/\/+$/, "").toLowerCase() + (qs ? "?" + qs : "");
+  }
+  catch { return String(u || "").trim().toLowerCase(); }
+};
+const normText = s => String(s || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+
+function findDuplicate(recs, company, role, url) {
+  if (url) {
+    const u = normUrl(url);
+    const byUrl = recs.find(r => r.url && normUrl(r.url) === u);
+    if (byUrl) return byUrl;
+  }
+  return recs.find(r => normText(r.company) === normText(company) && normText(r.role) === normText(role));
+}
 
 function list(filter) {
   let recs = load();
@@ -68,8 +94,16 @@ function list(filter) {
 }
 
 function add(company, role, source = "", url = "") {
-  if (!company || !role) { console.error('Usage: node scripts/jobkit.mjs add "Company" "Role" [source] [url]'); process.exit(1); }
+  if (!company || !role) { console.error('Usage: node scripts/jobkit.mjs add "Company" "Role" [source] [url] [--force]'); process.exit(1); }
   const recs = load();
+  if (!force) {
+    const dup = findDuplicate(recs, company, role, url);
+    if (dup) {
+      console.error(`Already tracked as #${dup.id}: ${dup.company} - ${dup.role} [${dup.status}]${dup.url ? `  ${dup.url}` : ""}`);
+      console.error("Pass --force to add it anyway (e.g. a separate opening with the same title).");
+      process.exit(1);
+    }
+  }
   const id = recs.reduce((m, r) => Math.max(m, Number(r.id) || 0), 0) + 1;
   const slug = `${company}-${role}`.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 50);
   const folder = `jobs/${id}-${slug}`;
@@ -80,13 +114,21 @@ function add(company, role, source = "", url = "") {
 }
 
 function set(id, status, ...noteParts) {
+  if (!id || !status) { console.error("Usage: node scripts/jobkit.mjs set <id> <status> [note]"); process.exit(1); }
   const recs = load();
   const rec = recs.find(r => String(r.id) === String(id));
   if (!rec) { console.error(`No application with id ${id}`); process.exit(1); }
+  const note = noteParts.join(" ");
   rec.status = status;
   rec.dates = rec.dates || {};
   rec.dates.updated = today();
-  if (noteParts.length) rec.notes = noteParts.join(" ");
+  // First time a stage is reached (applied, screen, ...) is what follow-ups are timed from.
+  const stage = status.toLowerCase();
+  if (stage !== "added" && stage !== "updated" && !rec.dates[stage]) rec.dates[stage] = today();
+  if (note) rec.notes = note;
+  // Append-only, so a new note never erases the record of an earlier one.
+  rec.history = rec.history || [];
+  rec.history.push({ date: today(), status, ...(note ? { note } : {}) });
   save(recs);
   console.log(`#${id} ${rec.company} - ${rec.role}  ->  ${status}`);
 }
@@ -117,7 +159,8 @@ function scaffold(id) {
   console.log(`Job folder ready: ${rec.folder}`);
 }
 
-const [cmd, ...args] = cliArgs;
+const force = cliArgs.includes("--force");
+const [cmd, ...args] = cliArgs.filter(a => a !== "--force");
 switch (cmd) {
   case "list": case "ls": case undefined: list(args[0]); break;
   case "add": add(...args); break;
@@ -127,7 +170,7 @@ switch (cmd) {
   default:
     console.log("jobkit — job application tracker\n");
     console.log("  node scripts/jobkit.mjs list [status]                 show applications");
-    console.log('  node scripts/jobkit.mjs add "Company" "Role" [src] [url]   add a lead');
+    console.log('  node scripts/jobkit.mjs add "Company" "Role" [src] [url] [--force]   add a lead (refuses duplicates)');
     console.log("  node scripts/jobkit.mjs scaffold <id>                 create the job's folder + files");
     console.log("  node scripts/jobkit.mjs set <id> <status> [note]      update status");
     console.log("  node scripts/jobkit.mjs open <id>                     print job folder path");
