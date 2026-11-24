@@ -3,7 +3,7 @@
 //
 // resume.md is the SINGLE source of truth. You edit only that. This script renders
 // it into the styled, ATS-clean resume.html, then exports dist/resume.pdf (headless
-// Edge/Chrome) and dist/resume.docx (headless LibreOffice).
+// Edge/Chrome) and dist/resume.docx (written directly by lib/docx.mjs; no Office app).
 //
 // Usage (--person <slug> REQUIRED, or set JOBKIT_PERSON):
 //   node scripts/build.mjs --person <slug>              # resume.md -> resume.html + dist/{pdf,docx}
@@ -23,6 +23,7 @@ import { execFileSync } from "node:child_process";
 import { tmpdir } from "node:os";
 import { pathToFileURL } from "node:url";
 import { resolvePerson } from "./lib/paths.mjs";
+import { docxFromResume } from "./lib/docx.mjs";
 
 // Person root (requires --person <slug> or JOBKIT_PERSON). `argv` is the CLI args
 // with the --person flag already stripped out, so positional parsing is unchanged.
@@ -223,9 +224,7 @@ ${parts.join("\n")}
 // ---- exports (best-effort; warn but don't fail the build) ----
 const firstExisting = paths => paths.find(p => existsSync(p));
 
-// LibreOffice wedges forever on a profile lock left by a killed run, so both exporters get
-// a throwaway profile; the timeout turns a wedged child into an error, not a silent hang.
-const EXPORT_TIMEOUT_MS = 120_000;
+// Chrome wedges on a profile lock left by a killed run, so it gets a throwaway profile.
 // Chrome renders the PDF in seconds but then hangs instead of exiting whenever a desktop
 // Chrome is already running, so it is capped separately and judged on its output.
 const PDF_TIMEOUT_MS = 30_000;
@@ -271,20 +270,8 @@ function wrotePdf(outPdf, startedAt) {
   return head.toString("latin1") === "%PDF-";
 }
 
-function exportDocx(htmlPath, outDir) {
-  const soffice = firstExisting([
-    "C:/Program Files/LibreOffice/program/soffice.exe",
-    "C:/Program Files (x86)/LibreOffice/program/soffice.exe",
-    "/Applications/LibreOffice.app/Contents/MacOS/soffice",
-    "/opt/homebrew/bin/soffice",
-    "/usr/local/bin/soffice",
-  ]);
-  if (!soffice) { console.warn("  [docx] no LibreOffice found - skipped"); return false; }
-  // LibreOffice names the output <htmlBasename>.docx inside outDir.
-  withTempProfile("resume-soffice-", dir => execFileSync(soffice, [
-    `-env:UserInstallation=${pathToFileURL(dir).href}`,
-    "--headless", "--convert-to", "docx:MS Word 2007 XML", "--outdir", outDir, htmlPath,
-  ], { stdio: "ignore", timeout: EXPORT_TIMEOUT_MS }));
+function exportDocx(doc, outPath) {
+  writeFileSync(outPath, docxFromResume(doc, sanitize));
   return true;
 }
 
@@ -302,7 +289,8 @@ const htmlPath = outDir ? join(outDir, base + ".html") : join(ROOT, base + ".htm
 const exportDir = outDir || join(ROOT, "dist");
 
 if (outDir) mkdirSync(outDir, { recursive: true });
-writeFileSync(htmlPath, render(parse(readFileSync(inputMd, "utf8"))));
+const doc = parse(readFileSync(inputMd, "utf8"));
+writeFileSync(htmlPath, render(doc));
 console.log(`✓ ${rel(htmlPath)}  (from ${rel(inputMd)})`);
 
 if (htmlOnly) {
@@ -311,6 +299,6 @@ if (htmlOnly) {
   mkdirSync(exportDir, { recursive: true });
   try { if (exportPdf(htmlPath, join(exportDir, base + ".pdf"))) console.log(`✓ ${rel(join(exportDir, base + ".pdf"))}`); }
   catch (e) { console.warn("  [pdf] failed:", e.message); }
-  try { if (exportDocx(htmlPath, exportDir)) console.log(`✓ ${rel(join(exportDir, base + ".docx"))}`); }
+  try { if (exportDocx(doc, join(exportDir, base + ".docx"))) console.log(`✓ ${rel(join(exportDir, base + ".docx"))}`); }
   catch (e) { console.warn("  [docx] failed:", e.message); }
 }

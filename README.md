@@ -45,7 +45,7 @@ can't take it with it), set `JOBKIT_PEOPLE_DIR` to a folder that holds the `<slu
 
 - **Node.js** (18+; zero npm dependencies).
 - **PDF export:** headless Microsoft Edge, Chrome or Chromium (auto-detected on Windows and macOS).
-- **DOCX export:** headless LibreOffice (auto-detected on Windows and macOS).
+- **DOCX export:** built in (`scripts/lib/docx.mjs`); no Word or LibreOffice needed.
 - **Text expander (optional):** [Espanso](https://espanso.org).
 
 ## Every command needs a person

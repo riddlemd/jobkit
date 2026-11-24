@@ -70,8 +70,8 @@ node scripts/refresh.mjs              # rebuild all global artifacts
 node scripts/refresh.mjs --no-espanso # ...but skip the Espanso copy/restart
 ```
 
-PDF uses headless Edge/Chrome/Chromium; DOCX uses headless LibreOffice (both auto-detected
-on Windows and macOS, no pandoc needed). Or just say *"rebuild the resume"* in Claude Code. After a build, the
+PDF uses headless Edge/Chrome/Chromium (auto-detected on Windows and macOS); DOCX is written
+directly by `scripts/lib/docx.mjs`, so no Word, LibreOffice or pandoc is needed. Or just say *"rebuild the resume"* in Claude Code. After a build, the
 DOCX is checked to stay ATS-clean (no tables/columns/text boxes).
 
 ## The workflow (per job)
@@ -146,7 +146,7 @@ node scripts/build.mjs
 ```
 
 The underlying tools (used automatically by the build; here for reference) are headless
-**Edge** for PDF and headless **LibreOffice** for DOCX — no pandoc required. To verify a
+**Edge** for PDF and `scripts/lib/docx.mjs` for DOCX (no Office app, no pandoc). To verify a
 DOCX stayed ATS-clean (zero is good):
 
 ```bash
