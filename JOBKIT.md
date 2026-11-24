@@ -1,7 +1,7 @@
 # Job Application Kit
 
-A lightweight, **ToS-compliant** system for applying to jobs faster. No auto-apply
-bots, no scraping, nothing that risks your LinkedIn account. The leverage comes from
+A lightweight system for applying to jobs faster. No unattended auto-apply bots, no bulk
+scraping, nothing that risks your LinkedIn account. The leverage comes from
 (1) a single canonical resume, (2) a few conventions, and (3) Claude doing the language
 work — tailoring and ATS analysis. The only code is a tiny tracker and a build generator.
 
@@ -227,9 +227,11 @@ When adding a job, create its `score.json` alongside the ATS gap analysis so it 
   regress it even if you paste fancy punctuation into `resume.md`.
 - **Never lie to beat keywords.** Tailor emphasis and wording, not facts.
 
-## Why no auto-apply
+## Why no unattended auto-apply
 
 LinkedIn's Terms of Service prohibit automated applying/scraping; they ban accounts that
-do it. This kit deliberately stops at the "you click submit" line. All the time-savings
+do it. An agent may help with an application, including filling the form and submitting
+it, but only while you are watching the session, one application at a time. Nothing
+applies from a background job, subagent, schedule or batch loop. Most of the time-savings
 are in prep (tailoring, ATS, canned answers, tracking) — which is where the hours
 actually go anyway.

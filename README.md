@@ -5,8 +5,9 @@ resume that generates ATS-clean PDF/DOCX, a per-job tracker, a transparent job-r
 engine, and a text-expander for repetitive application fields. **Multi-person** by design -
 shared code, per-person data - so it can serve several job seekers from one codebase.
 
-No auto-apply bots, no scraping. The leverage is in preparation (tailoring, ATS gap
-analysis, canned answers, tracking); the kit stops at the "you click submit" line.
+No unattended auto-apply bots, no bulk scraping. The leverage is in preparation (tailoring,
+ATS gap analysis, canned answers, tracking); an agent may fill and submit an application
+only while you supervise the session.
 
 ## Principles
 
@@ -16,7 +17,7 @@ analysis, canned answers, tracking); the kit stops at the "you click submit" lin
   punctuation only (the build auto-sanitizes en/em-dashes, smart quotes, etc.).
 - **Transparent ranking.** Jobs are scored on curated inputs with fixed formulas you can
   reproduce by hand - no NLP guessing.
-- **Assist-only.** Nothing automates submitting applications.
+- **Supervised only.** An agent may apply for you while you watch, one at a time; nothing applies unattended.
 - **Multi-person.** Data is per-person under `people/<slug>/`; code is shared in `scripts/`.
 
 ## Layout

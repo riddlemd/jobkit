@@ -33,8 +33,11 @@ short operating contract.
    output, but keep `resume.md` and `answers.md` ASCII too (they get pasted into forms).
    Verify (from the person dir): `python -c "import io;print([hex(ord(c)) for c in set(io.open('resume.md',encoding='utf-8').read()) if ord(c)>127] or 'ASCII')"`
 4. **Keep exports ATS-clean:** single column, no tables/columns/text boxes/images.
-5. **Assist-only. No auto-apply / scraping** (LinkedIn ToS). The kit stops at "you click
-   submit." Don't build or suggest automation that submits applications.
+5. **Supervised assistance only. No unattended applying.** An agent may drive an
+   application end to end (open the posting, fill fields, upload the resume, submit) only
+   while the user is actively watching the session, one application at a time. Never apply
+   from a background job, a subagent, a schedule, or a batch loop. Browse job sites at a
+   human pace; LinkedIn bans accounts for automated activity.
 6. **Never invent resume facts** to pass ATS keywords. Tailor emphasis and wording only.
 
 ## Files
